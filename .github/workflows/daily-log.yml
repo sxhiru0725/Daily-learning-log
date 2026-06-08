@@ -2,8 +2,12 @@ name: Daily Learning Log
 
 on:
   schedule:
-    # Runs every day at 8:00 PM UTC
-    - cron: "0 20 * * *"
+    # Runs at different times during the day.
+    # The workflow will randomly decide whether to create a commit or skip.
+    - cron: "15 9 * * *"
+    - cron: "40 14 * * *"
+    - cron: "20 20 * * *"
+
   workflow_dispatch:
 
 permissions:
@@ -17,59 +21,116 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Randomly decide whether to log today
-        run: |
-          # 0, 1, 2, 3, 4 = commit
-          # 5, 6 = skip
-          RANDOM_NUMBER=$((RANDOM % 7))
-
-          if [ "$RANDOM_NUMBER" -ge 5 ]; then
-            echo "Skipping today's log to make activity more natural."
-            echo "SKIP_COMMIT=true" >> $GITHUB_ENV
-          else
-            echo "Creating today's learning log."
-            echo "SKIP_COMMIT=false" >> $GITHUB_ENV
-          fi
-
-      - name: Update daily learning log
-        if: env.SKIP_COMMIT == 'false'
+      - name: Check if today's log already exists
+        id: check_log
         run: |
           mkdir -p logs
 
           TODAY=$(TZ="Europe/London" date '+%Y-%m-%d')
           YEAR=$(TZ="Europe/London" date '+%Y')
+          LOG_FILE="logs/${YEAR}.md"
+
+          if [ -f "$LOG_FILE" ] && grep -q "$TODAY" "$LOG_FILE"; then
+            echo "A log already exists for today."
+            echo "ALREADY_LOGGED=true" >> $GITHUB_ENV
+          else
+            echo "No log found for today."
+            echo "ALREADY_LOGGED=false" >> $GITHUB_ENV
+          fi
+
+      - name: Randomly decide whether to log today
+        if: env.ALREADY_LOGGED == 'false'
+        run: |
+          DAY_OF_WEEK=$(TZ="Europe/London" date '+%u')
+          RANDOM_NUMBER=$((RANDOM % 10))
+
+          # Lower chance on weekends, higher chance on weekdays.
+          # Weekdays: around 50% chance per workflow run.
+          # Weekends: around 25% chance per workflow run.
+          if [ "$DAY_OF_WEEK" -ge 6 ]; then
+            if [ "$RANDOM_NUMBER" -lt 3 ]; then
+              echo "Creating a weekend learning log."
+              echo "SHOULD_LOG=true" >> $GITHUB_ENV
+            else
+              echo "Skipping weekend log."
+              echo "SHOULD_LOG=false" >> $GITHUB_ENV
+            fi
+          else
+            if [ "$RANDOM_NUMBER" -lt 5 ]; then
+              echo "Creating a weekday learning log."
+              echo "SHOULD_LOG=true" >> $GITHUB_ENV
+            else
+              echo "Skipping weekday log."
+              echo "SHOULD_LOG=false" >> $GITHUB_ENV
+            fi
+          fi
+
+      - name: Stop if already logged today
+        if: env.ALREADY_LOGGED == 'true'
+        run: |
+          echo "Skipping because today's log already exists."
+
+      - name: Stop if random decision is skip
+        if: env.ALREADY_LOGGED == 'false' && env.SHOULD_LOG == 'false'
+        run: |
+          echo "Skipping today's log to keep activity natural."
+
+      - name: Update daily learning log
+        if: env.ALREADY_LOGGED == 'false' && env.SHOULD_LOG == 'true'
+        run: |
+          mkdir -p logs
+
+          TODAY=$(TZ="Europe/London" date '+%Y-%m-%d')
+          YEAR=$(TZ="Europe/London" date '+%Y')
+          MONTH=$(TZ="Europe/London" date '+%B')
+          LOG_FILE="logs/${YEAR}.md"
+
+          if [ ! -f "$LOG_FILE" ]; then
+            echo "# Daily Learning Log ${YEAR}" > "$LOG_FILE"
+            echo "" >> "$LOG_FILE"
+            echo "This file tracks my software development learning, technical practice, and professional growth." >> "$LOG_FILE"
+            echo "" >> "$LOG_FILE"
+          fi
+
+          if ! grep -q "## ${MONTH}" "$LOG_FILE"; then
+            echo "" >> "$LOG_FILE"
+            echo "## ${MONTH}" >> "$LOG_FILE"
+            echo "" >> "$LOG_FILE"
+          fi
 
           LOG_MESSAGES=(
-            "Practised software development and continued building consistent coding habits."
-            "Reviewed technical concepts and recorded daily learning progress."
-            "Worked on improving programming knowledge, problem-solving, and development discipline."
-            "Continued my software development learning journey through daily technical practice."
-            "Recorded progress in coding, technical learning, and professional development."
-            "Focused on strengthening development fundamentals and maintaining consistent learning habits."
-            "Improved technical understanding through daily study, coding practice, and reflection."
-            "Reviewed project structure, code quality, and software development principles."
-            "Worked on improving my understanding of Git, GitHub, and development workflow."
-            "Continued building discipline through small daily technical improvements."
+            "Reviewed software development concepts and continued building consistent technical habits."
+            "Practised coding fundamentals and reflected on areas for improvement."
+            "Worked on strengthening problem-solving skills through regular technical practice."
+            "Continued improving my understanding of Git, GitHub, and professional development workflows."
+            "Focused on software engineering discipline, documentation, and steady learning progress."
+            "Reviewed project structure, code quality, and development best practices."
+            "Practised programming concepts and recorded progress in my learning journey."
+            "Continued developing technical confidence through small, consistent improvements."
+            "Reviewed development fundamentals and maintained steady progress in my coding routine."
+            "Worked on improving my understanding of software projects, version control, and documentation."
+            "Continued building a consistent habit of learning, coding, and reflecting on technical growth."
+            "Focused on improving my software development workflow and professional coding discipline."
           )
 
           SELECTED_MESSAGE=${LOG_MESSAGES[$RANDOM % ${#LOG_MESSAGES[@]}]}
 
-          echo "- ${TODAY}: ${SELECTED_MESSAGE}" >> logs/${YEAR}.md
+          echo "- ${TODAY}: ${SELECTED_MESSAGE}" >> "$LOG_FILE"
 
       - name: Commit and push changes
-        if: env.SKIP_COMMIT == 'false'
+        if: env.ALREADY_LOGGED == 'false' && env.SHOULD_LOG == 'true'
         run: |
           COMMIT_MESSAGES=(
-            "docs: update daily learning progress"
-            "docs: record software development practice"
-            "docs: update technical learning log"
+            "docs: update learning log"
+            "docs: record development progress"
+            "docs: update technical learning notes"
             "docs: document coding practice"
-            "docs: record professional development progress"
-            "docs: update software engineering notes"
-            "docs: add technical learning entry"
-            "docs: record daily study progress"
-            "docs: update development reflection"
-            "docs: document learning activity"
+            "docs: add learning reflection"
+            "docs: update software development log"
+            "docs: record technical progress"
+            "docs: update study notes"
+            "docs: document development activity"
+            "docs: add daily learning note"
           )
 
           SELECTED_COMMIT=${COMMIT_MESSAGES[$RANDOM % ${#COMMIT_MESSAGES[@]}]}
