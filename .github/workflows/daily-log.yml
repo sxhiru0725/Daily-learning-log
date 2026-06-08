@@ -1,12 +1,9 @@
-name: Daily Contribution Log
+name: Daily Learning Log
 
 on:
   schedule:
     # Runs every day at 8:00 PM UTC
-    # UK time: 8:00 PM during GMT, 9:00 PM during BST
     - cron: "0 20 * * *"
-
-  # Allows you to run it manually from the Actions tab
   workflow_dispatch:
 
 permissions:
@@ -20,7 +17,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Randomly decide whether to log today
+        run: |
+          # 0, 1, 2, 3, 4 = commit
+          # 5, 6 = skip
+          RANDOM_NUMBER=$((RANDOM % 7))
+
+          if [ "$RANDOM_NUMBER" -ge 5 ]; then
+            echo "Skipping today's log to make activity more natural."
+            echo "SKIP_COMMIT=true" >> $GITHUB_ENV
+          else
+            echo "Creating today's learning log."
+            echo "SKIP_COMMIT=false" >> $GITHUB_ENV
+          fi
+
       - name: Update daily learning log
+        if: env.SKIP_COMMIT == 'false'
         run: |
           mkdir -p logs
 
@@ -35,6 +47,9 @@ jobs:
             "Recorded progress in coding, technical learning, and professional development."
             "Focused on strengthening development fundamentals and maintaining consistent learning habits."
             "Improved technical understanding through daily study, coding practice, and reflection."
+            "Reviewed project structure, code quality, and software development principles."
+            "Worked on improving my understanding of Git, GitHub, and development workflow."
+            "Continued building discipline through small daily technical improvements."
           )
 
           SELECTED_MESSAGE=${LOG_MESSAGES[$RANDOM % ${#LOG_MESSAGES[@]}]}
@@ -42,15 +57,19 @@ jobs:
           echo "- ${TODAY}: ${SELECTED_MESSAGE}" >> logs/${YEAR}.md
 
       - name: Commit and push changes
+        if: env.SKIP_COMMIT == 'false'
         run: |
           COMMIT_MESSAGES=(
             "docs: update daily learning progress"
             "docs: record software development practice"
             "docs: update technical learning log"
-            "docs: document daily coding activity"
+            "docs: document coding practice"
             "docs: record professional development progress"
-            "docs: update daily software engineering notes"
-            "docs: add daily technical learning entry"
+            "docs: update software engineering notes"
+            "docs: add technical learning entry"
+            "docs: record daily study progress"
+            "docs: update development reflection"
+            "docs: document learning activity"
           )
 
           SELECTED_COMMIT=${COMMIT_MESSAGES[$RANDOM % ${#COMMIT_MESSAGES[@]}]}
