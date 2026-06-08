@@ -1,29 +1,63 @@
-name: Daily contribution log
+name: Daily Contribution Log
 
 on:
   schedule:
+    # Runs every day at 8:00 PM UTC
+    # UK time: 8:00 PM during GMT, 9:00 PM during BST
     - cron: "0 20 * * *"
+
+  # Allows you to run it manually from the Actions tab
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  update-log:
+  update-daily-log:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Update daily log
+      - name: Update daily learning log
         run: |
           mkdir -p logs
-          echo "- $(date '+%Y-%m-%d') Daily coding / learning progress." >> logs/2026.md
 
-      - name: Commit and push
+          TODAY=$(TZ="Europe/London" date '+%Y-%m-%d')
+          YEAR=$(TZ="Europe/London" date '+%Y')
+
+          LOG_MESSAGES=(
+            "Practised software development and continued building consistent coding habits."
+            "Reviewed technical concepts and recorded daily learning progress."
+            "Worked on improving programming knowledge, problem-solving, and development discipline."
+            "Continued my software development learning journey through daily technical practice."
+            "Recorded progress in coding, technical learning, and professional development."
+            "Focused on strengthening development fundamentals and maintaining consistent learning habits."
+            "Improved technical understanding through daily study, coding practice, and reflection."
+          )
+
+          SELECTED_MESSAGE=${LOG_MESSAGES[$RANDOM % ${#LOG_MESSAGES[@]}]}
+
+          echo "- ${TODAY}: ${SELECTED_MESSAGE}" >> logs/${YEAR}.md
+
+      - name: Commit and push changes
         run: |
+          COMMIT_MESSAGES=(
+            "docs: update daily learning progress"
+            "docs: record software development practice"
+            "docs: update technical learning log"
+            "docs: document daily coding activity"
+            "docs: record professional development progress"
+            "docs: update daily software engineering notes"
+            "docs: add daily technical learning entry"
+          )
+
+          SELECTED_COMMIT=${COMMIT_MESSAGES[$RANDOM % ${#COMMIT_MESSAGES[@]}]}
+
           git config user.name "sxhiru0725"
           git config user.email "sahiruimadith200507@gmail.com"
-          git add logs/2026.md
-          git commit -m "Add daily learning log" || exit 0
+
+          git add logs/
+          git commit -m "$SELECTED_COMMIT" || exit 0
           git push
