@@ -1,0 +1,29 @@
+name: Daily contribution log
+
+on:
+  schedule:
+    - cron: "0 20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-log:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update daily log
+        run: |
+          mkdir -p logs
+          echo "- $(date '+%Y-%m-%d') Daily coding / learning progress." >> logs/2026.md
+
+      - name: Commit and push
+        run: |
+          git config user.name "sxhiru0725"
+          git config user.email "sahiruimadith200507@gmail.com"
+          git add logs/2026.md
+          git commit -m "Add daily learning log" || exit 0
+          git push
